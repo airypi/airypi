@@ -28,8 +28,6 @@ class EventLoop(object):
     def __init__(self, device_type):
         self.mq = current_app.config['NOCLIENT_MQ']()
         self.mq.clear()
-
-        print "event loop queue key:" + str(self.mq.queue_key)
         
         self.handler = device.Device.handler_for_type[device_type]()
 
@@ -40,7 +38,6 @@ class EventLoop(object):
         msg = self.mq.pop()
         
         if msg is not None:
-            print msg
             msg = json.loads(msg)
             self.handle_event(msg)
         
@@ -59,7 +56,6 @@ class RPiEventLoop(EventLoop):
         EventLoop.__init__(self, device.Device.RPI)        
 
     def handle_event(self, event):
-        print 'handling event:' + str(event)
         event_type = event['type']
         
         if event_type == 'gpio_callback':
@@ -77,15 +73,13 @@ class RPiEventLoop(EventLoop):
             emit('ui_load', json.loads(message))
         elif event_type == "ui":
             element_id = event['element_id']
-            print 'element id:' + element_id
             
             if not hasattr(self.handler, 'ui_elements'):
                 return
-
-            for element in self.handler.ui_elements():
-                print element.id
             
-            element = [element for element in self.handler.ui_elements() if element.id == element_id][0]
+            element = [element for element in self.handler.ui_elements() if element.id == element_id]
+            if len(element) != 1:
+                raise Exception('ui element was not found in ui_elements(). Try refreshing your webpage.')
             
             if 'update' in event:
                 updates = event['update']
