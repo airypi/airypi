@@ -63,6 +63,8 @@ def api_version():
 #oauth stuff
 @app.route('/login')
 def login():
+    if request.headers.get('X-Forwarded-Proto', 'http') == 'https': 
+        return oauth_server.authorize(callback=url_for('authorized', _external=True, _scheme="https"))
     return oauth_server.authorize(callback=url_for('authorized', _external=True))
 
 @app.route('/authorized')
@@ -183,24 +185,26 @@ def setup(debug = True,
         from redis_queue import RedisMQ
         import redis
         
-        redis_client_url = 'REDISCLOUD_URL' in os.environ
+        redis_client_url = os.environ['REDISCLOUD_URL']
         if redis_url is not None:
             redis_client_url = redis_url
-        
+        print "redis url:" + redis_client_url
         app.config['NOCLIENT_MQ'] = RedisMQ
-        RedisMQ.redis = redis.from_url(redis_client_url)
+        RedisMQ.redis = redis.StrictRedis.from_url(url = redis_client_url, db = 0)
+        
         app.debug = False
         
     socketio_host = host
     socketio_port = port
     
     if 'PORT' in os.environ:
-        socketio_port = os.environ['PORT']
+        socketio_host = '0.0.0.0'
+        socketio_port = int(os.environ['PORT'])
     
     #nasty hack but whatever
     oauth_server._consumer_key = client_id
     oauth_server._consumer_secret = client_secret
-        
+
     socketio.run(app, host = socketio_host, port = socketio_port)
 
 if __name__ == "__main__":
